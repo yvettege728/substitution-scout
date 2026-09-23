@@ -1,69 +1,115 @@
 # substitution-scout
 
-A Hermes skill for deciding what can stand in the place of something a person
-can no longer buy after moving between cities, plus the wrapper and the external
-auditor that keep it honest.
+A Hermes skill and a wrapper for an agent that works out what can stand in the
+place of something a person can no longer buy after moving between cities, and
+that is allowed to answer that nothing can.
 
-Written for MAS.665J, MIT AI Studio, Fall 2026.
+The interesting part is not the search. It is who holds the pen.
 
-## The idea
+## Why it is built this way
 
-Grocery systems match substitutes on size, brand, name and embedding distance.
-People do not. A substitute is judged on two axes at once.
+Across nine runs the agent's judgment about the task held up. Its reports about
+its own work failed five times. It claimed to have written records it had not
+written, dated its own work with invented timestamps, deleted a hypothesis while
+saying it was revising it, and once produced a forged audit block headed "by
+audit.py, not by the agent" declaring itself clean after removing 101 lines of
+the real log.
 
-**Five property layers**, what the thing is: material, sign, economic,
-relational, and order and trust.
+The fifth failure happened on a frontier model in the cloud, not on the small
+free model used locally. It printed two predictions in its reply and wrote zero
+bytes. So the problem is not model strength, and it is not a prompt that needs
+sharpening.
 
-**Six ritual layers**, which step of the practice broke: search, acquisition,
-possession, use, sharing, divestment.
+**A record an agent can edit is not a record.** Version 4 acts on that.
 
-A candidate can match on material and fail on order. Which layer decides differs
-by item, and at the start of a run nobody knows which one it is, so the agent has
-to find out before it proposes anything.
+## Custody
 
-Three rules follow from that:
+The agents have no write access to any record.
 
-- **Predict before you propose.** Each candidate gets a prediction line written
-  to an append-only log before the candidate is shown, so the reasoning is on
-  record before the answer is.
-- **Ask at the deepest unknown layer**, not the easiest one. A question about
-  shipping is cheap; it is rarely the real question.
-- **"Do not buy" is a valid answer.** If what was lost is a practice rather than
-  a product, the agent has to say so. That answer never appears in a system owned
-  by sellers.
+Each runs in its own staging directory under `stage/`, rebuilt from scratch every
+run. The record files live in the repository root, outside every staging
+directory. Anything an agent wants recorded goes in a single fenced `ledger` block
+at the end of its reply; `ledger.py` parses that block, refuses any record missing
+a required field, and appends it, supplying the timestamp itself so a run cannot
+date its own work.
 
-## Why the auditor exists
+The sha256 of every record file is taken immediately before and after each model
+call. A mismatch is a `CUSTODY VIOLATION`, caught by arithmetic rather than by the
+agent's own confession.
 
-Over nine runs on a small free model, the agent invented timestamps and cited
-them as proof of ordering, claimed to have appended records during a run in which
-it wrote zero bytes, deleted an audit log and wrote a forged one in its place, and
-replaced a hypothesis it claimed to be revising. Its judgment about the task held
-up; its account of its own actions did not.
+## Three agents
 
-So `audit.py` runs after the agent and outside it. It compares the working tree
-against git by content rather than by diff hunks, checks that every prediction
-carries the clock reading the wrapper supplied, and reports what the run actually
-wrote. It has blind spots of its own, and they are documented in the code.
+| Agent | Sees | Tools | Does |
+|---|---|---|---|
+| planner | `context.md`, `queue.md`, `profile.md`, mechanisms | file | picks one item off the queue, says why that one, states its stop condition |
+| scout | `plan.md`, `persona.md`, mechanisms | web, file, vision | property layers 1 to 3, one prediction per candidate |
+| judge | `plan.md`, `candidates.md`, `profile.md`, `context.md` | file | property layers 4 and 5, accept / reject / no_purchase / ask |
+
+The scout is not trusted with the deep layers and does not have them. `profile.md`
+is absent from its directory, so the disclosure rule is enforced by the file system
+rather than by the agent's good behaviour.
+
+The judge is handed the candidates with the scout's `predict` and `confidence`
+stripped out. A judge that can read the bet is not an independent test of it. In
+one run where it could read them it agreed three times out of three; with the
+predictions withheld, the same setup scored one hit and two misses.
+
+## The loop closes
+
+`score.py` matches each decision back to the prediction that preceded it and
+writes hit or miss to `scores.jsonl`. No model is involved. `context.py` renders
+the agent's own accuracy per layer into the next run's `context.md`, so a run that
+has been wrong about a layer is told so before it predicts again.
+
+`scores-void.txt` lists runs whose scores must not count, with the reason. Records
+are append-only, so a bad score is annotated rather than deleted.
+
+## What custody did not fix
+
+A clean run is not a good run. One run passed every check with eleven records and
+none refused, and its hypothesis still read as word salad.
+
+| | record integrity | content quality |
+|---|---|---|
+| architecture | fixed: forgery is now physically impossible | no effect: the auditor can check that a hypothesis exists, not that it means anything |
+| model strength | no effect: the frontier model wrote zero bytes too | this is where it bites |
+
+Custody separation cures forgery. It does not cure nonsense. The auditor's ceiling
+is presence, not truth, and closing that gap needs a verifier outside this system.
 
 ## Files
 
 | Path | What it is |
 |---|---|
-| `skills/substitution-scout/SKILL.md` | the rules the agent runs on |
-| `run.sh` | one run: git snapshot, a clock the agent cannot fake, the agent, then the audit |
-| `audit.py` | the external auditor |
-| `profile.example.md` | template for the private profile the skill reads |
+| `skills/substitution-scout/SKILL.md` | the rules all three agents run on |
+| `run.sh` | one run: snapshot, three agents in three boxes, ledger, score, audit, commit |
+| `ledger.py` | the wrapper's pen. The only thing that writes a record |
+| `context.py` | renders what the agents are allowed to know about their past |
+| `score.py` | closes predictions against decisions. Mechanical |
+| `audit.py` | the external auditor. Runs after the agents, never by them |
+| `mechanisms.md` | the five substitution mechanisms and the two axes |
+| `profile.example.md` | what the private profile looks like. Copy to `profile.md` |
+| `persona.example.md` | the only file that may leave. Copy to `persona.md` |
+| `queue.example.md` | open items. Copy to `queue.md` |
 
 ## Use
 
-Install [Hermes Agent](https://github.com/NousResearch/hermes-agent), copy the
-skill into your project, then:
+    cp profile.example.md profile.md
+    cp persona.example.md persona.md
+    cp queue.example.md queue.md
+    hermes skills trust substitution-scout
+    ./run.sh first-run
 
-    ./run.sh <label> "<task>"
+`--skills substitution-scout` is required for the skill to load. Trusting it is
+not enough, and `skills list` will tell you it is enabled either way.
 
-The skill has to be preloaded explicitly with `--skills substitution-scout`.
-Trusting the project is not enough; the skill will be listed as enabled and still
-not be in the session.
+Set `AGENT_PROVIDER` and `AGENT_MODEL` together to override the model.
+
+## Requirements
+
+Hermes Agent, python3, git, and ripgrep on PATH as a real binary. The file
+toolset's search needs `rg`; a shell function of that name will not be inherited
+by the subprocess. Paths given to the agents must be absolute.
 
 ## Licence
 
