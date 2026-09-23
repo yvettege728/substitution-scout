@@ -23,6 +23,15 @@ HERMES="${HERMES_BIN:-$(command -v hermes 2>/dev/null)}"
 [ -x "$HERMES" ] || HERMES=/opt/hermes/.venv/bin/hermes
 [ -x "$HERMES" ] || { echo "no hermes binary found; set HERMES_BIN"; exit 1; }
 
+# Builds differ. The container ships an older hermes with neither --in nor
+# --no-restore-cwd, and passing them makes it read the path as a subcommand.
+# Probe once, then fall back to entering the directory ourselves. Every prompt
+# already names absolute paths, so the agent loses nothing either way.
+HELP=$("$HERMES" --help 2>&1 || true)
+HAS_IN=0; HAS_NORESTORE=0
+case "$HELP" in *"--in DIR"*|*"--in "*) HAS_IN=1;; esac
+case "$HELP" in *"--no-restore-cwd"*) HAS_NORESTORE=1;; esac
+
 LABEL="${1:?usage: ./run.sh <label> [extra instruction]}"
 EXTRA="${2:-}"
 
@@ -50,11 +59,15 @@ hashes () { for f in "${RECORDS[@]}"; do shasum -a 256 "$f"; done; }
 # except through ledger.py.
 phase () {
   local name="$1" tools="$2" prompt="$3"
-  local dir="stage/$name" out="runs/$LABEL.$name.md"
+  local dir="stage/$name" out="$PWD/runs/$LABEL.$name.md"
+  local flags=()
+  [ "$HAS_IN" = 1 ] && flags+=(--in "$PWD/$dir")
+  [ "$HAS_NORESTORE" = 1 ] && flags+=(--no-restore-cwd)
   hashes > ".custody/$LABEL.$name.before"
   echo "=== $LABEL / $name ==="
-  "$HERMES" --in "$PWD/$dir" --no-restore-cwd "${MODEL_ARGS[@]+"${MODEL_ARGS[@]}"}" \
-    --skills substitution-scout -t "$tools" -z "$prompt" 2>&1 | tee "$out"
+  ( cd "$dir" && "$HERMES" "${flags[@]+"${flags[@]}"}" \
+      "${MODEL_ARGS[@]+"${MODEL_ARGS[@]}"}" \
+      --skills substitution-scout -t "$tools" -z "$prompt" 2>&1 ) | tee "$out"
   hashes > ".custody/$LABEL.$name.after"
   if ! diff -q ".custody/$LABEL.$name.before" ".custody/$LABEL.$name.after" >/dev/null; then
     echo "CUSTODY VIOLATION in phase $name: a record file changed while the agent was running" \
