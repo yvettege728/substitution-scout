@@ -20,22 +20,34 @@ VERDICTS = {"accept", "accepted", "reject", "rejected", "no_purchase", "ask"}
 # not evidence; an incomplete record is worse than a missing one, because it
 # looks like a record.
 NEEDED = {
-    "plan": ["item", "why_this_item", "ritual_hypothesis", "stop_when"],
+    "plan": ["item", "why_this_item", "ritual_hypothesis", "stop_when", "split_test"],
     "prediction": ["item", "candidate", "predict", "confidence", "deciding_layer",
                    "ritual_layer", "why"],
     "decision": ["item", "candidate", "verdict", "reason", "deciding_layer", "ritual_layer"],
     "hypothesis": ["text", "status", "evidence"],
     "boundary": ["moment", "went", "reason"],
     "profile_proposal": ["section", "wording"],
-    "action": ["item", "candidate", "where"],
+    "action": ["item", "candidate", "where", "url", "price", "recheck"],
 }
+
+
+EMPTY = {"none", "null", "n/a", "na", "-", "tbd", "unknown", "?"}
 
 
 def check(rec):
     kind = rec.get("record")
-    missing = [f for f in NEEDED.get(kind, []) if not str(rec.get(f, "")).strip()]
+    missing, hollow = [], []
+    for f in NEEDED.get(kind, []):
+        v = str(rec.get(f, "")).strip()
+        if not v:
+            missing.append(f)
+        elif v.lower() in EMPTY:
+            hollow.append(f)
     if missing:
         raise ValueError(f"{kind} record is missing {', '.join(missing)}")
+    if hollow:
+        raise ValueError(f"{kind} record has placeholder values in {', '.join(hollow)}; "
+                         f"write what you actually found, or say 'not verified' and why")
 
 
 def parse(text):
@@ -80,8 +92,12 @@ def route(rec, label, stamp):
 
     if kind == "plan":
         rec["ts"], rec["run"] = stamp, label
+        cells = rec.get("split_cells") or []
         append("plans.jsonl", json.dumps(rec, ensure_ascii=False))
-        return "plans.jsonl", f"plan for {g('item')}"
+        note = f"plan for {g('item')}"
+        if cells:
+            note += f", split into {len(cells)} cell(s)"
+        return "plans.jsonl", note
 
     if kind == "prediction":
         rec["ts"], rec["run"] = stamp, label

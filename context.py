@@ -92,6 +92,9 @@ def main(stage):
 
     out += ["", "## Your accuracy so far", ""]
     rates = hit_rates()
+    void = void_runs()
+    scored = [s for s in jsonl("scores.jsonl")
+              if str(s.get("prediction_id", "")).split("#")[0] not in void]
     if not rates:
         out.append("No prediction has been scored yet. Treat your confidence as untested.")
     else:
@@ -110,6 +113,20 @@ def main(stage):
         else:
             out.append("No layer is below 70% yet. That is a small sample, not a licence to "
                        "raise your confidence.")
+
+    # Where the scout and the judge named different deciding layers, one of them
+    # read the item wrong even when the accept or reject happened to match.
+    withboth = [s for s in scored if s.get("scout_layer") and s.get("judge_layer")]
+    if withboth:
+        disagreed = [s for s in withboth if not s.get("layers_agree")]
+        out += ["", f"The scout and the judge named the same deciding layer in "
+                    f"{len(withboth) - len(disagreed)} of {len(withboth)} scored candidates."]
+        for s in disagreed[-4:]:
+            out.append(f"- {s.get('candidate')}: scout said layer {s['scout_layer']}, "
+                       f"judge decided on layer {s['judge_layer']}")
+        if disagreed:
+            out.append("A candidate can be accepted for a reason the scout did not see. "
+                       "Naming the layer is part of the prediction, not decoration.")
 
     out += ["", f"## Predictions still open ({len(open_preds)})", ""]
     for p in open_preds[-8:]:

@@ -64,6 +64,16 @@ has been wrong about a layer is told so before it predicts again.
 `scores-void.txt` lists runs whose scores must not count, with the reason. Records
 are append-only, so a bad score is annotated rather than deleted.
 
+## Two agents can agree on the answer and disagree on the world
+
+Every scored candidate now records the layer the scout predicted would decide it
+and the layer the judge actually decided on. In one run both scored candidates
+were rejected exactly as predicted, and the layers disagreed both times: the
+scout was reasoning from price and packaging, the judge from what restores order.
+
+A hit rate alone hides this. The accuracy looked perfect for a layer that was not
+deciding anything. Naming the layer is part of the prediction, not decoration.
+
 ## What custody did not fix
 
 A clean run is not a good run. One run passed every check with eleven records and
@@ -86,6 +96,7 @@ is presence, not truth, and closing that gap needs a verifier outside this syste
 | `ledger.py` | the wrapper's pen. The only thing that writes a record |
 | `context.py` | renders what the agents are allowed to know about their past |
 | `score.py` | closes predictions against decisions. Mechanical |
+| `queue.py` | writes the queue status back after a run, and opens a row per cell when the split test fires |
 | `audit.py` | the external auditor. Runs after the agents, never by them |
 | `mechanisms.md` | the five substitution mechanisms and the two axes |
 | `profile.example.md` | what the private profile looks like. Copy to `profile.md` |

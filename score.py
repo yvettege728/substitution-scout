@@ -33,6 +33,10 @@ def decisions():
             for key in ("item", "candidate", "reason"):
                 if part.startswith(key + ":"):
                     d[key] = part[len(key) + 1:].strip()
+            if part.startswith("property layer decided:"):
+                d["deciding_layer"] = part.split(":", 1)[1].strip()
+            if part.startswith("ritual layer decided:"):
+                d["ritual_layer"] = part.split(":", 1)[1].strip()
         verdict = next((p for p in parts if p.lower() in ACCEPTING | REJECTING), None)
         if d.get("item") and d.get("candidate") and verdict:
             d["verdict"] = verdict.lower()
@@ -82,11 +86,20 @@ def main(stamp):
                 "candidate": pred.get("candidate"), "predicted": predicted,
                 "actual": actual, "outcome": outcome,
                 "confidence": pred.get("confidence"),
-                "deciding_layer": str(pred.get("deciding_layer", "?")),
+                # The scout names a layer when it predicts; the judge names one when
+                # it decides, and the two often differ. Keeping only the scout's
+                # would file every result under a layer that did not settle it.
+                "scout_layer": str(pred.get("deciding_layer", "?")),
+                "judge_layer": str(match.get("deciding_layer", "?")),
+                "layers_agree": str(pred.get("deciding_layer", "?")) == str(match.get("deciding_layer", "?")),
+                "deciding_layer": str(match.get("deciding_layer", pred.get("deciding_layer", "?"))),
                 "person_reason": match.get("reason", ""),
             }, ensure_ascii=False) + "\n")
         new += 1
-        print(f"SCORED {pid} {pred.get('candidate')}: predicted {predicted}, actual {actual} -> {outcome}")
+        agree = str(pred.get("deciding_layer", "?")) == str(match.get("deciding_layer", "?"))
+        print(f"SCORED {pid} {pred.get('candidate')}: predicted {predicted}, actual {actual} "
+              f"-> {outcome}; layer scout {pred.get('deciding_layer','?')} vs judge "
+              f"{match.get('deciding_layer','?')}{'' if agree else '  DISAGREE'}")
     print(f"SCORE: {new} prediction(s) closed this run")
     return 0
 
