@@ -17,6 +17,12 @@ set -uo pipefail
 cd "$(dirname "$0")"
 export PATH="$HOME/.local/bin:$PATH"
 
+# Find hermes. A local install puts it on PATH; the Maritime container keeps it
+# inside its own virtualenv and never adds it. Override with HERMES_BIN.
+HERMES="${HERMES_BIN:-$(command -v hermes 2>/dev/null)}"
+[ -x "$HERMES" ] || HERMES=/opt/hermes/.venv/bin/hermes
+[ -x "$HERMES" ] || { echo "no hermes binary found; set HERMES_BIN"; exit 1; }
+
 LABEL="${1:?usage: ./run.sh <label> [extra instruction]}"
 EXTRA="${2:-}"
 
@@ -47,7 +53,7 @@ phase () {
   local dir="stage/$name" out="runs/$LABEL.$name.md"
   hashes > ".custody/$LABEL.$name.before"
   echo "=== $LABEL / $name ==="
-  hermes --in "$PWD/$dir" --no-restore-cwd "${MODEL_ARGS[@]+"${MODEL_ARGS[@]}"}" \
+  "$HERMES" --in "$PWD/$dir" --no-restore-cwd "${MODEL_ARGS[@]+"${MODEL_ARGS[@]}"}" \
     --skills substitution-scout -t "$tools" -z "$prompt" 2>&1 | tee "$out"
   hashes > ".custody/$LABEL.$name.after"
   if ! diff -q ".custody/$LABEL.$name.before" ".custody/$LABEL.$name.after" >/dev/null; then
