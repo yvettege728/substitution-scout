@@ -32,6 +32,13 @@ HAS_IN=0; HAS_NORESTORE=0
 case "$HELP" in *"--in DIR"*|*"--in "*) HAS_IN=1;; esac
 case "$HELP" in *"--no-restore-cwd"*) HAS_NORESTORE=1;; esac
 
+# The pipeline has to be hermetic. Hermes loads an ambient persona file for every
+# session on the machine, and on the deployed agent that file is the Telegram
+# front desk. Without this the scout stops scouting and asks "What are you
+# looking for?", because it inherited a personality meant for someone else.
+HAS_IGNORE=0
+case "$HELP" in *"--ignore-rules"*) HAS_IGNORE=1;; esac
+
 LABEL="${1:?usage: ./run.sh <label> [extra instruction]}"
 EXTRA="${2:-}"
 
@@ -71,6 +78,7 @@ phase () {
   local flags=()
   [ "$HAS_IN" = 1 ] && flags+=(--in "$PWD/$dir")
   [ "$HAS_NORESTORE" = 1 ] && flags+=(--no-restore-cwd)
+  [ "$HAS_IGNORE" = 1 ] && flags+=(--ignore-rules --ignore-user-config)
   hashes > ".custody/$LABEL.$name.before"
   echo "=== $LABEL / $name ==="
   ( cd "$dir" && "$HERMES" "${flags[@]+"${flags[@]}"}" \
