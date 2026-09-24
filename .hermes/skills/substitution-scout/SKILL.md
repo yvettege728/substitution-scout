@@ -44,7 +44,9 @@ appends it to the real files, and it supplies the timestamp itself.
 
 ### The format is strict
 
-The block holds **JSON Lines**. One complete JSON object per line. Every line
+The block holds **JSON Lines**. One complete JSON object per line, and every object starts with its `record` key naming the type. A line without `record` is refused, because the wrapper cannot tell which file it belongs in.
+
+Do not set `ts` or `run` yourself. The wrapper owns those. Every line
 starts with `{` and ends with `}`. No YAML, no `key: value` lines, no indentation,
 no nesting of records inside one another, no comments, no trailing commas.
 

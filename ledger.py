@@ -12,7 +12,10 @@ Prints one line per record appended, and the count, for the auditor to read.
 import json, re, sys
 from pathlib import Path
 
-BLOCK = re.compile(r"```ledger\s*\n(.*?)```", re.S)
+# Models label the fence differently once they are told the content is JSON
+# Lines. The label is not the contract; the contents are. Accept the obvious
+# synonyms and keep validating every line.
+BLOCK = re.compile(r"```(?:ledger|jsonl|ndjson|json)\s*\n(.*?)```", re.S)
 
 VERDICTS = {"accept", "accepted", "reject", "rejected", "no_purchase", "ask"}
 
@@ -85,6 +88,9 @@ def next_pred_id(label):
 def route(rec, label, stamp):
     """Write one record. Returns (file, description) or raises ValueError."""
     kind = rec.get("record")
+    if kind is None:
+        raise ValueError("no 'record' key; every line must name its type, "
+                         f"one of {', '.join(sorted(NEEDED))}")
     if kind not in NEEDED:
         raise ValueError(f"unknown record type {kind!r}")
     check(rec)
