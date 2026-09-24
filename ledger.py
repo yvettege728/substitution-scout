@@ -53,10 +53,24 @@ def check(rec):
                          f"write what you actually found, or say 'not verified' and why")
 
 
+BARE = re.compile(r'^\s*(\{\s*"record"\s*:.*\})\s*$', re.M)
+
+
 def parse(text):
-    """Every ledger block in the transcript, as (line_no, dict) or (line_no, error)."""
+    """Every record in the transcript, as (line_no, dict) or (line_no, error).
+
+    Records normally arrive inside a fenced block. Once the prompt shows a
+    literal line template, models often emit the line and skip the fence, which
+    is a labelling difference and not a broken record. Fall back to scanning for
+    bare objects that name their own record type. Everything still has to parse
+    as JSON and still has to pass the field check."""
+    blocks = BLOCK.findall(text)
+    if not blocks:
+        bare = BARE.findall(text)
+        if bare:
+            blocks = ["\n".join(bare)]
     out = []
-    for block in BLOCK.findall(text):
+    for block in blocks:
         for n, raw in enumerate(block.splitlines(), 1):
             raw = raw.strip()
             if not raw or raw.startswith("//"):
