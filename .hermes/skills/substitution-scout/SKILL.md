@@ -42,6 +42,16 @@ appends it to the real files, and it supplies the timestamp itself.
 ```
 ````
 
+### The format is strict
+
+The block holds **JSON Lines**. One complete JSON object per line. Every line
+starts with `{` and ends with `}`. No YAML, no `key: value` lines, no indentation,
+no nesting of records inside one another, no comments, no trailing commas.
+
+A line that does not parse as JSON is refused and the refusal is logged against
+you. The refusal message will say `not JSON`, and if you see that in a later run
+it means you wrote the block in some other notation.
+
 `verdict` must be one of accept, reject, no_purchase, ask. A malformed line is
 refused and the refusal is logged against you. Do not put a timestamp in any
 record; the wrapper knows the time and you do not.

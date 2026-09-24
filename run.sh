@@ -76,7 +76,7 @@ phase () {
   python3 ledger.py "$out" "$LABEL" "$STAMP" | tee -a "runs/$LABEL.ledger.txt"
 }
 
-COMMON="Current time: $STAMP. Never invent a time. Run label: $LABEL. Use the substitution-scout skill; it holds the rules and the ledger format. You have no write access to any record. Everything you want recorded goes in a single fenced ledger block at the end of your reply, and the wrapper writes it."
+COMMON="Current time: $STAMP. Never invent a time. Run label: $LABEL. Use the substitution-scout skill; it holds the rules and the ledger format. You have no write access to any record. Everything you want recorded goes in a single fenced ledger block at the end of your reply, and the wrapper writes it. That block is JSON Lines: one complete JSON object per line, each starting with { and ending with }. Not YAML, not indented key: value pairs. A line that is not valid JSON is refused and does not exist."
 
 # ---------------------------------------------------------------- plan
 python3 context.py stage/plan

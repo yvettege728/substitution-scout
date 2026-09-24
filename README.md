@@ -91,7 +91,7 @@ is presence, not truth, and closing that gap needs a verifier outside this syste
 
 | Path | What it is |
 |---|---|
-| `skills/substitution-scout/SKILL.md` | the rules all three agents run on |
+| `.hermes/skills/substitution-scout/SKILL.md` | the rules all three agents run on. Hermes only finds a skill under `.hermes/skills`, so the dotted path matters |
 | `run.sh` | one run: snapshot, three agents in three boxes, ledger, score, audit, commit |
 | `ledger.py` | the wrapper's pen. The only thing that writes a record |
 | `context.py` | renders what the agents are allowed to know about their past |
@@ -108,11 +108,11 @@ is presence, not truth, and closing that gap needs a verifier outside this syste
     cp profile.example.md profile.md
     cp persona.example.md persona.md
     cp queue.example.md queue.md
-    hermes skills trust substitution-scout
     ./run.sh first-run
 
-`--skills substitution-scout` is required for the skill to load. Trusting it is
-not enough, and `skills list` will tell you it is enabled either way.
+`--skills substitution-scout` is required for the skill to load, and the skill
+has to sit under `.hermes/skills`. Older builds have no `skills trust`, and
+`skills list` will not show a workspace skill at all.
 
 Set `AGENT_PROVIDER` and `AGENT_MODEL` together to override the model.
 
