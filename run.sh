@@ -78,7 +78,8 @@ phase () {
   local flags=()
   [ "$HAS_IN" = 1 ] && flags+=(--in "$PWD/$dir")
   [ "$HAS_NORESTORE" = 1 ] && flags+=(--no-restore-cwd)
-  [ "$HAS_IGNORE" = 1 ] && flags+=(--ignore-rules --ignore-user-config)
+  # --ignore-user-config is not safe here: it also stops the skill from loading.
+  [ "$HAS_IGNORE" = 1 ] && flags+=(--ignore-rules)
   hashes > ".custody/$LABEL.$name.before"
   echo "=== $LABEL / $name ==="
   ( cd "$dir" && "$HERMES" "${flags[@]+"${flags[@]}"}" \
